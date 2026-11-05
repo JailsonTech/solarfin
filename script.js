@@ -14,17 +14,24 @@ function fmtPct(val) {
   return val.toFixed(2).replace('.', ',') + '%';
 }
 
+// Função para converter strings formatadas em PT-BR (ex: "2.078.220,00" ou "9,25") para float numérico do JS
+function parsePtBr(valorStr) {
+  if (valorStr === null || valorStr === undefined) return 0;
+  let limpo = valorStr.toString().replace(/\./g, '').replace(',', '.');
+  return parseFloat(limpo) || 0;
+}
+
 function calcularViabilidade() {
-  // Ler valores das entradas
-  const capex = parseFloat(document.getElementById('capex').value);
-  const geracaoInicial = parseFloat(document.getElementById('geracaoAnual').value);
-  const tarifaInicial = parseFloat(document.getElementById('tarifaInicial').value);
-  const opexInicial = parseFloat(document.getElementById('opexInicial').value);
-  const tma = parseFloat(document.getElementById('tma').value) / 100;
-  const reajusteTarifa = parseFloat(document.getElementById('reajusteTarifa').value) / 100;
-  const ipca = parseFloat(document.getElementById('ipca').value) / 100;
-  const degradacao = parseFloat(document.getElementById('degradacao').value) / 100;
-  const pctTrocaInv = parseFloat(document.getElementById('trocaInversor').value) / 100;
+  // Ler valores das entradas convertendo do formato brasileiro
+  const capex = parsePtBr(document.getElementById('capex').value);
+  const geracaoInicial = parsePtBr(document.getElementById('geracaoAnual').value);
+  const tarifaInicial = parsePtBr(document.getElementById('tarifaInicial').value);
+  const opexInicial = parsePtBr(document.getElementById('opexInicial').value);
+  const tma = parsePtBr(document.getElementById('tma').value) / 100;
+  const reajusteTarifa = parsePtBr(document.getElementById('reajusteTarifa').value) / 100;
+  const ipca = parsePtBr(document.getElementById('ipca').value) / 100;
+  const degradacao = parsePtBr(document.getElementById('degradacao').value) / 100;
+  const pctTrocaInv = parsePtBr(document.getElementById('trocaInversor').value) / 100;
   const modalidade = document.getElementById('modalidade').value;
 
   // Calcular parcelas anuais de financiamento para simplificação do modelo de 25 anos
