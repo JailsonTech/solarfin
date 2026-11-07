@@ -202,9 +202,16 @@
 
       <!-- TABELA DINÂMICA AJUSTADA -->
       <div class="card shadow-sm mb-5 border-0">
-        <div class="card-header bg-white font-weight-bold d-flex justify-content-between align-items-center">
-          <span id="tabelaTitulo"><i class="bi bi-table text-primary me-2"></i> Tabela Detalhada do Fluxo de Caixa (25 Anos)</span>
-          <small class="text-muted">Valores em Reais (R$)</small>
+        <div class="card-header bg-white font-weight-bold d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <span id="tabelaTitulo" class="d-flex align-items-center">
+            <i class="bi bi-table text-primary me-2"></i> Tabela Detalhada - Foc em Payback Descontado (TMA)
+          </span>
+          <div class="d-flex align-items-center gap-3">
+            <small class="text-muted">Valores em Reais (R$)</small>
+            <button type="button" id="btnBaixarExcelTabela" class="btn btn-success btn-sm fw-bold shadow-sm">
+              <i class="bi bi-file-earmark-excel me-1"></i> Baixar Excel
+            </button>
+          </div>
         </div>
         <div class="card-body p-0">
           <div class="table-responsive">
@@ -223,7 +230,7 @@
   </div>
 
   <!-- Biblioteca SheetJS para exportação de Excel com múltiplas abas -->
-   <script src="services/bcbApi.js"></script>
+  <script src="services/bcbApi.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="js/financiamento.js"></script>

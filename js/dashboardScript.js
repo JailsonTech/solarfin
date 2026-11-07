@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const linhaSelect = document.getElementById('linhaFinanciamentoSelect');
   const paybackSelect = document.getElementById('tipoPaybackSelect');
   const btnExportar = document.getElementById('btnExportarExcel');
+  const btnBaixarTabela = document.getElementById('btnBaixarExcelTabela');
 
   // 1. CARREGAMENTO AUTOMÁTICO DOS ÍNDICES DA API DO BANCO CENTRAL (services/bcbApi.js)
   if (typeof BcbApi !== 'undefined') {
@@ -40,9 +41,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     paybackSelect.addEventListener('change', executarSimulacao);
   }
 
-  // --- BOTÃO DE EXPORTAÇÃO PARA O EXCEL (MÚLTIPLAS ABAS) ---
+  // --- BOTÕES DE EXPORTAÇÃO PARA O EXCEL (MÚLTIPLAS ABAS) ---
   if (btnExportar) {
     btnExportar.addEventListener('click', exportarPlanilhaMultiaabas);
+  }
+  if (btnBaixarTabela) {
+    btnBaixarTabela.addEventListener('click', exportarPlanilhaMultiaabas);
   }
 
   // Máscaras de input numéricas
