@@ -40,9 +40,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     paybackSelect.addEventListener('change', executarSimulacao);
   }
 
-  // --- BOTÃO DE EXPORTAÇÃO PARA O EXCEL (ABA ÚNICA) ---
+  // --- BOTÃO DE EXPORTAÇÃO PARA O EXCEL (MÚLTIPLAS ABAS) ---
   if (btnExportar) {
-    btnExportar.addEventListener('click', exportarPlanilhaUnica);
+    btnExportar.addEventListener('click', exportarPlanilhaMultiaabas);
   }
 
   // Máscaras de input numéricas
@@ -262,8 +262,8 @@ function executarSimulacao() {
   renderizarGraficos(resSimples.fluxoAcumulado, resDescontado.acumuladoDescontado, economiaEnergia, opex);
 }
 
-// Função para gerar e baixar a planilha Excel em aba única unificada
-function exportarPlanilhaUnica() {
+// Função para gerar e baixar a planilha Excel com Múltiplas Abas (uma para cada linha de financiamento)
+function exportarPlanilhaMultiaabas() {
   const capex = parsePtBr(document.getElementById('capex')?.value);
   const geracaoInicial = parsePtBr(document.getElementById('geracaoAnual')?.value);
   const tarifaInicial = parsePtBr(document.getElementById('tarifaInicial')?.value);
@@ -274,56 +274,84 @@ function exportarPlanilhaUnica() {
   const degradacao = parsePtBr(document.getElementById('degradacao')?.value) / 100;
   const pctTrocaInv = parsePtBr(document.getElementById('trocaInversor')?.value) / 100;
 
-  const idLinha = document.getElementById('linhaFinanciamentoSelect')?.value || '3';
-  const financiamento = calcularFinanciamento(idLinha, capex);
-  const investimentoInicial = financiamento.valorEntrada;
+  const tipoFocoPayback = document.getElementById('tipoPaybackSelect')?.value || 'descontado';
 
-  let economiaEnergia = Array(26).fill(0);
-  let opex = Array(26).fill(0);
-  let trocaInversor = Array(26).fill(0);
-  let fluxoLiquido = Array(26).fill(0);
-  fluxoLiquido[0] = -investimentoInicial;
-
-  for (let ano = 1; ano <= 25; ano++) {
-    const geracaoAno = geracaoInicial * Math.pow(1 - degradacao, ano - 1);
-    const tarifaAno = tarifaInicial * Math.pow(1 + reajusteTarifa, ano - 1);
-    economiaEnergia[ano] = geracaoAno * tarifaAno;
-    opex[ano] = opexInicial * Math.pow(1 + ipca, ano - 1);
-    if (ano === 12) {
-      trocaInversor[ano] = capex * pctTrocaInv * Math.pow(1 + ipca, ano - 1);
-    }
-    let parcelaAnoCorrente = (ano <= financiamento.prazoAnos) ? financiamento.desembolsoAnual : 0;
-    fluxoLiquido[ano] = economiaEnergia[ano] - opex[ano] - trocaInversor[ano] - parcelaAnoCorrente;
-  }
-
-  const resSimples = calcularPaybackSimples(fluxoLiquido, investimentoInicial);
-  const resDescontado = calcularPaybackDescontado(fluxoLiquido, investimentoInicial, tma);
-
-  // Montar dados unificados em uma única lista para a planilha
-  let dadosUnificados = [];
-  for (let ano = 0; ano <= 25; ano++) {
-    let parcelaExibida = (ano > 0 && ano <= financiamento.prazoAnos) ? financiamento.desembolsoAnual : 0;
-    dadosUnificados.push({
-      "Ano": ano === 0 ? "Ano 0" : `Ano ${ano}`,
-      "Economia de Energia (R$)": ano === 0 ? 0 : economiaEnergia[ano],
-      "OPEX (R$)": ano === 0 ? 0 : opex[ano],
-      "Troca Inversores (R$)": trocaInversor[ano] || 0,
-      "Financiamento (R$)": parcelaExibida,
-      "Fluxo Líquido (R$)": fluxoLiquido[ano],
-      "Fluxo Acumulado Simples (R$)": resSimples.fluxoAcumulado[ano],
-      "Fluxo Descontado (R$)": resDescontado.fluxoDescontado[ano],
-      "Acumulado Descontado (R$)": resDescontado.acumuladoDescontado[ano]
-    });
-  }
-
+  // Cria um novo livro de Excel (Workbook)
   const wb = XLSX.utils.book_new();
-  const wsUnico = XLSX.utils.json_to_sheet(dadosUnificados);
 
-  // Adiciona a aba consolidada
-  XLSX.utils.book_append_sheet(wb, wsUnico, "Fluxo_Consolidado");
+  // As 4 linhas oficiais mapeadas no seu objeto LINHAS_FINANCIAMENTO
+  const idsLinhas = [1, 2, 3, 4];
 
-  // Dispara o download do arquivo .xlsx
-  XLSX.writeFile(wb, "Simulacao_Metalurgica_Alfa.xlsx");
+  idsLinhas.forEach(idLinha => {
+    const financiamento = calcularFinanciamento(idLinha, capex);
+    const investimentoInicial = financiamento.valorEntrada;
+
+    let economiaEnergia = Array(26).fill(0);
+    let opex = Array(26).fill(0);
+    let trocaInversor = Array(26).fill(0);
+    let fluxoLiquido = Array(26).fill(0);
+    fluxoLiquido[0] = -investimentoInicial;
+
+    for (let ano = 1; ano <= 25; ano++) {
+      const geracaoAno = geracaoInicial * Math.pow(1 - degradacao, ano - 1);
+      const tarifaAno = tarifaInicial * Math.pow(1 + reajusteTarifa, ano - 1);
+      economiaEnergia[ano] = geracaoAno * tarifaAno;
+      opex[ano] = opexInicial * Math.pow(1 + ipca, ano - 1);
+      if (ano === 12) {
+        trocaInversor[ano] = capex * pctTrocaInv * Math.pow(1 + ipca, ano - 1);
+      }
+      let parcelaAnoCorrente = (ano <= financiamento.prazoAnos) ? financiamento.desembolsoAnual : 0;
+      fluxoLiquido[ano] = economiaEnergia[ano] - opex[ano] - trocaInversor[ano] - parcelaAnoCorrente;
+    }
+
+    const resSimples = calcularPaybackSimples(fluxoLiquido, investimentoInicial);
+    const resDescontado = calcularPaybackDescontado(fluxoLiquido, investimentoInicial, tma);
+
+    // Montagem dos dados da aba específica desta linha
+    let wsData = [
+      ["RELATÓRIO DE VIABILIDADE - METALÚRGICA ALFA"],
+      [`Modalidade:  ${financiamento.linhaSelecionada.nome}`],
+      [`Prazo: ${financiamento.linhaSelecionada.prazo} meses | Taxa: ${(financiamento.linhaSelecionada.taxa * 100).toFixed(2)}% a.m.`],
+      [`Foco de Análise:  ${tipoFocoPayback === 'simples' ? "Payback Simples (Nominal)" : "Payback Descontado (TMA)"}`],
+      [], // Linha em branco
+      [
+        "Ano", 
+        "Economia de Energia (R$)", 
+        "OPEX (R$)", 
+        "Troca Inversores (R$)", 
+        "Financiamento (R$)", 
+        "Fluxo Líquido (R$)", 
+        "Fluxo Acumulado Simples (R$)", 
+        "Fluxo Descontado (R$)", 
+        "Acumulado Descontado (R$)"
+      ]
+    ];
+
+    for (let ano = 0; ano <= 25; ano++) {
+      let parcelaExibida = (ano > 0 && ano <= financiamento.prazoAnos) ? financiamento.desembolsoAnual : 0;
+      wsData.push([
+        ano === 0 ? "Ano 0" : `Ano ${ano}`,
+        ano === 0 ? 0 : economiaEnergia[ano],
+        ano === 0 ? 0 : opex[ano],
+        trocaInversor[ano] || 0,
+        parcelaExibida,
+        fluxoLiquido[ano],
+        resSimples.fluxoAcumulado[ano],
+        resDescontado.fluxoDescontado[ano],
+        resDescontado.acumuladoDescontado[ano]
+      ]);
+    }
+
+    // Cria a aba (worksheet) para esta linha
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    
+    // Define o nome da aba de forma limpa (ex: "Linha_1", "Linha_2", etc.)
+    const nomeAba = `Linha_${idLinha}`;
+    XLSX.utils.book_append_sheet(wb, ws, nomeAba);
+  });
+
+  // Dispara o download do arquivo contendo todas as abas
+  XLSX.writeFile(wb, "Simulacao_Completa_Todas_As_Linhas.xlsx");
 }
 
 function renderizarGraficos(acumuladoSimples, acumuladoDesc, economia, opex) {
