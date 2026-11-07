@@ -262,17 +262,23 @@ function executarSimulacao() {
   renderizarGraficos(resSimples.fluxoAcumulado, resDescontado.acumuladoDescontado, economiaEnergia, opex);
 }
 
-// Função para gerar e baixar a planilha Excel com Múltiplas Abas (uma para cada linha de financiamento)
+// Função para gerar e baixar a planilha Excel com Múltiplas Abas e os parâmetros de entrada detalhados
 function exportarPlanilhaMultiaabas() {
   const capex = parsePtBr(document.getElementById('capex')?.value);
   const geracaoInicial = parsePtBr(document.getElementById('geracaoAnual')?.value);
   const tarifaInicial = parsePtBr(document.getElementById('tarifaInicial')?.value);
   const opexInicial = parsePtBr(document.getElementById('opexInicial')?.value);
-  const tma = parsePtBr(document.getElementById('tma')?.value) / 100;
-  const reajusteTarifa = parsePtBr(document.getElementById('reajusteTarifa')?.value) / 100;
-  const ipca = parsePtBr(document.getElementById('ipca')?.value) / 100;
-  const degradacao = parsePtBr(document.getElementById('degradacao')?.value) / 100;
-  const pctTrocaInv = parsePtBr(document.getElementById('trocaInversor')?.value) / 100;
+  const tmaVal = document.getElementById('tma')?.value;
+  const reajusteVal = document.getElementById('reajusteTarifa')?.value;
+  const ipcaVal = document.getElementById('ipca')?.value;
+  const degradacaoVal = document.getElementById('degradacao')?.value;
+  const pctTrocaInvVal = document.getElementById('trocaInversor')?.value;
+
+  const tma = parsePtBr(tmaVal) / 100;
+  const reajusteTarifa = parsePtBr(reajusteVal) / 100;
+  const ipca = parsePtBr(ipcaVal) / 100;
+  const degradacao = parsePtBr(degradacaoVal) / 100;
+  const pctTrocaInv = parsePtBr(pctTrocaInvVal) / 100;
 
   const tipoFocoPayback = document.getElementById('tipoPaybackSelect')?.value || 'descontado';
 
@@ -307,13 +313,39 @@ function exportarPlanilhaMultiaabas() {
     const resSimples = calcularPaybackSimples(fluxoLiquido, investimentoInicial);
     const resDescontado = calcularPaybackDescontado(fluxoLiquido, investimentoInicial, tma);
 
-    // Montagem dos dados da aba específica desta linha
+    // Montagem dos dados da aba específica desta linha com os parâmetros de entrada solicitados
     let wsData = [
       ["RELATÓRIO DE VIABILIDADE - METALÚRGICA ALFA"],
       [`Modalidade:  ${financiamento.linhaSelecionada.nome}`],
       [`Prazo: ${financiamento.linhaSelecionada.prazo} meses | Taxa: ${(financiamento.linhaSelecionada.taxa * 100).toFixed(2)}% a.m.`],
       [`Foco de Análise:  ${tipoFocoPayback === 'simples' ? "Payback Simples (Nominal)" : "Payback Descontado (TMA)"}`],
       [], // Linha em branco
+      // Títulos dos parâmetros de entrada
+      [
+        "CAPEX (R$)", 
+        "Geração Anual (kWh)", 
+        "Tarifa Inicial (R$/kWh)", 
+        "OPEX Inicial (R$)", 
+        "TMA (%)", 
+        "Reajuste Tarifário (%)", 
+        "IPCA / Inflação (%)", 
+        "Degradação Solar (%)", 
+        "Troca de Inversores (%)"
+      ],
+      // Valores correspondentes dos parâmetros de entrada
+      [
+        capex, 
+        geracaoInicial, 
+        tarifaInicial, 
+        opexInicial, 
+        parsePtBr(tmaVal), 
+        parsePtBr(reajusteVal), 
+        parsePtBr(ipcaVal), 
+        parsePtBr(degradacaoVal), 
+        parsePtBr(pctTrocaInvVal)
+      ],
+      [], // Linha em branco
+      // Cabeçalho da tabela de fluxo de caixa de 25 anos
       [
         "Ano", 
         "Economia de Energia (R$)", 
