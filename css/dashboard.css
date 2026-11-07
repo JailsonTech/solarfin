@@ -1,0 +1,93 @@
+/* --- Tabela Responsiva e Cabeçalho Fixo --- */
+.table-responsive {
+    max-height: 550px;
+    overflow-y: auto;
+    scrollbar-width: thin; /* Firefox */
+    scrollbar-color: #cbd5e1 #f1f5f9; /* Firefox */
+    border-radius: 0.375rem; /* Suaviza as bordas do container da tabela */
+}
+
+/* Scrollbar personalizada para navegadores Base (Chrome, Edge, Safari) */
+.table-responsive::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.table-responsive::-webkit-scrollbar-track {
+    background: #f1f5f9;
+}
+
+.table-responsive::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+.table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2; /* Aumentado para garantir sobreposição perfeita sobre os dados */
+    background-color: #212529 !important;
+    color: #fff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15); /* Sombra mais destacada para o cabeçalho fixo */
+    white-space: nowrap; /* Evita que o texto do cabeçalho quebre linha feio */
+}
+
+/* --- UX Financeira: Alinhamento de Valores à Direita --- */
+/* Células que contêm valores numéricos/monetários devem alinhar à direita para facilitar leitura */
+.table th:not(:first-child),
+.table td:not(:first-child) {
+    text-align: right;
+}
+
+.table th:first-child,
+.table td:first-child {
+    text-align: left;
+}
+
+/* --- Destaque e Interatividade na Tabela --- */
+.table tbody tr {
+    transition: background-color 0.15s ease-in-out;
+}
+
+.table tbody tr:hover {
+    background-color: rgba(13, 110, 253, 0.04) !important;
+}
+
+/* --- Formulários e Focos (Inputs e Selects) --- */
+.form-control, .form-select {
+    transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15);
+}
+
+/* Estado de erro visual para UX aprimorada */
+.form-control.is-invalid, .form-select.is-invalid {
+    border-color: #dc3545;
+    box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0.15);
+}
+
+/* --- Refinamento Visual de Cards e Botões --- */
+.card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.btn {
+    transition: all 0.2s ease-in-out;
+}
+
+.btn:active {
+    transform: scale(0.98);
+}
+
+/* Efeito sutil de carregamento para botões de ação */
+.btn.loading {
+    opacity: 0.75;
+    pointer-events: none;
+}

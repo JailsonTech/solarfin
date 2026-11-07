@@ -1,0 +1,11 @@
+/* css/index.css - Estilos Base Compartilhados */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f8f9fa;
+    color: #333;
+}
+
+/* Transições suaves gerais */
+a, button {
+    transition: all 0.2s ease-in-out;
+}
