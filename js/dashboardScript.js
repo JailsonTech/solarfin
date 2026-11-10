@@ -1,31 +1,14 @@
 let chartFC = null;
 let chartComp = null;
 
-document.addEventListener('DOMContentLoaded', async () => {
+document.addEventListener('DOMContentLoaded', () => {
   const form = document.getElementById('calcForm');
   const linhaSelect = document.getElementById('linhaFinanciamentoSelect');
   const paybackSelect = document.getElementById('tipoPaybackSelect');
   const btnExportar = document.getElementById('btnExportarExcel');
   const btnBaixarTabela = document.getElementById('btnBaixarExcelTabela');
 
-  // 1. CARREGAMENTO AUTOMÁTICO DOS ÍNDICES DA API DO BANCO CENTRAL (services/bcbApi.js)
-  if (typeof BcbApi !== 'undefined') {
-    try {
-      const indices = await BcbApi.obterIndicesAtualizados();
-      if (indices.ipca) {
-        const inputIpca = document.getElementById('ipca');
-        if (inputIpca) inputIpca.value = indices.ipca;
-      }
-      if (indices.tma) {
-        const inputTma = document.getElementById('tma');
-        if (inputTma) inputTma.value = indices.tma;
-      }
-    } catch (e) {
-      console.warn("Não foi possível carregar os dados automáticos da API do BCB. Mantendo padrões.", e);
-    }
-  }
-
-  // 2. Dispara o cálculo ao enviar o formulário
+  // 1. Dispara o cálculo ao enviar o formulário
   if (form) {
     form.addEventListener('submit', function(e) {
       e.preventDefault();
@@ -49,11 +32,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     btnBaixarTabela.addEventListener('click', exportarPlanilhaMultiaabas);
   }
 
-  // Máscaras de input numéricas
+  // Máscaras de input numéricas com formatação bancária em tempo real (estilo moeda R$)
   document.querySelectorAll('.decimal-mask').forEach(input => {
     input.addEventListener('input', function(e) {
-      let val = e.target.value.replace(/[^\d,\.]/g, '');
-      e.target.value = val;
+      let valor = e.target.value.replace(/\D/g, ""); // Remove tudo que não for dígito
+      
+      if (valor === "") {
+        e.target.value = "";
+        return;
+      }
+
+      // Converte para número decimal considerando os últimos 2 dígitos como centavos
+      let numero = parseFloat(valor) / 100;
+
+      // Formata no padrão brasileiro (R$ / milhares com ponto e decimais com vírgula)
+      e.target.value = numero.toLocaleString('pt-BR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      });
     });
   });
 
@@ -77,22 +73,19 @@ function parsePtBr(valorStr) {
 
 function executarSimulacao() {
   const capex = parsePtBr(document.getElementById('capex')?.value);
-  const geracaoInicial = parsePtBr(document.getElementById('geracaoAnual')?.value);
-  const tarifaInicial = parsePtBr(document.getElementById('tarifaInicial')?.value);
+  const economiaInicial = parsePtBr(document.getElementById('economiaInicial')?.value);
   const opexInicial = parsePtBr(document.getElementById('opexInicial')?.value);
   const tma = parsePtBr(document.getElementById('tma')?.value) / 100;
   const reajusteTarifa = parsePtBr(document.getElementById('reajusteTarifa')?.value) / 100;
   const ipca = parsePtBr(document.getElementById('ipca')?.value) / 100;
-  const degradacao = parsePtBr(document.getElementById('degradacao')?.value) / 100;
-  const pctTrocaInv = parsePtBr(document.getElementById('trocaInversor')?.value) / 100;
 
   // 1. Captura as escolhas dos dois selects
-  const idLinha = document.getElementById('linhaFinanciamentoSelect')?.value || '3';
+  const idLinha = document.getElementById('linhaFinanciamentoSelect')?.value || '0';
   const tipoFocoPayback = document.getElementById('tipoPaybackSelect')?.value || 'descontado';
 
   // 2. Processa o financiamento da linha escolhida via módulo dedicado (financiamento.js)
   const financiamento = calcularFinanciamento(idLinha, capex);
-  const investimentoInicial = financiamento.valorEntrada; // Se for Leasing (Linha 4), entrada é 0
+  const investimentoInicial = financiamento.valorEntrada; // Se for Recursos Próprios, valorEntrada = capex.
 
   let economiaEnergia = Array(26).fill(0);
   let opex = Array(26).fill(0);
@@ -102,20 +95,14 @@ function executarSimulacao() {
   fluxoLiquido[0] = -investimentoInicial;
 
   for (let ano = 1; ano <= 25; ano++) {
-    const geracaoAno = geracaoInicial * Math.pow(1 - degradacao, ano - 1);
-    const tarifaAno = tarifaInicial * Math.pow(1 + reajusteTarifa, ano - 1);
-    
-    economiaEnergia[ano] = geracaoAno * tarifaAno;
+    // Economia reajustada diretamente pelo índice de reajuste tarifário
+    economiaEnergia[ano] = economiaInicial * Math.pow(1 + reajusteTarifa, ano - 1);
     opex[ano] = opexInicial * Math.pow(1 + ipca, ano - 1);
-
-    if (ano === 12) {
-      trocaInversor[ano] = capex * pctTrocaInv * Math.pow(1 + ipca, ano - 1);
-    }
 
     // Abate a parcela anual do financiamento durante o prazo da linha
     let parcelaAnoCorrente = (ano <= financiamento.prazoAnos) ? financiamento.desembolsoAnual : 0;
 
-    fluxoLiquido[ano] = economiaEnergia[ano] - opex[ano] - trocaInversor[ano] - parcelaAnoCorrente;
+    fluxoLiquido[ano] = economiaEnergia[ano] - opex[ano] - parcelaAnoCorrente;
   }
 
   // 3. Executa os cálculos matemáticos independentes de Payback (Simples e Descontado)
@@ -129,13 +116,13 @@ function executarSimulacao() {
   document.getElementById('vplVal').innerText = fmtR$(resDescontado.vpl);
   document.getElementById('vplSub').innerText = resDescontado.vpl > 0 ? "Projeto Viável (VPL > 0)" : "Inviável (VPL < 0)";
   
-  // Tratamento seguro da TIR (evita NaN% em linhas sem CAPEX próprio, como o Leasing Linha 4)
+  // Tratamento seguro da TIR
   if (resDescontado.tir !== null && !isNaN(resDescontado.tir)) {
     document.getElementById('tirVal').innerText = fmtPct(resDescontado.tir * 100);
     document.getElementById('tirSub').innerText = resDescontado.tir > tma ? `Acima da TMA (${fmtPct(tma * 100)})` : `Abaixo da TMA`;
   } else {
     document.getElementById('tirVal').innerText = "N/A";
-    document.getElementById('tirSub').innerText = "Inaplicável (Leasing sem Capex Inicial)";
+    document.getElementById('tirSub').innerText = "Inaplicável (Modalidade sem Capex Inicial)";
   }
 
   document.getElementById('pbDescVal').innerText = resDescontado.pbDescontado ? `${resDescontado.pbDescontado.toFixed(1)} anos` : '> 25 anos';
@@ -160,7 +147,7 @@ function executarSimulacao() {
     }
   }
 
-  // 6. MONTAGEM DINÂMICA DA TABELA (SEPARADA POR SIMPLES OU DESCONTADO)
+  // 6. MONTAGEM DINÂMICA DA TABELA
   const theadTr = document.getElementById('tabelaCabecalho');
   const tituloTabela = document.getElementById('tabelaTitulo');
   const tbody = document.querySelector('#tabelaFC tbody');
@@ -173,7 +160,6 @@ function executarSimulacao() {
         <th>Ano</th>
         <th>Economia de Energia</th>
         <th>OPEX</th>
-        <th>Troca Inversores</th>
         <th>Financiamento</th>
         <th>Fluxo Líquido</th>
         <th>Fluxo Acumulado Simples</th>
@@ -186,7 +172,6 @@ function executarSimulacao() {
         <th>Ano</th>
         <th>Economia de Energia</th>
         <th>OPEX</th>
-        <th>Troca Inversores</th>
         <th>Financiamento</th>
         <th>Fluxo Líquido</th>
         <th>Fluxo Descontado</th>
@@ -203,14 +188,14 @@ function executarSimulacao() {
       if (tipoFocoPayback === 'simples') {
         tr.innerHTML = `
           <td><b>Ano 0</b></td>
-          <td>-</td><td>-</td><td>-</td><td>-</td>
+          <td>-</td><td>-</td><td>-</td>
           <td class="text-danger fw-bold">${fmtR$(fluxoLiquido[0])}</td>
           <td class="text-danger fw-bold">${fmtR$(resSimples.fluxoAcumulado[0])}</td>
         `;
       } else {
         tr.innerHTML = `
           <td><b>Ano 0</b></td>
-          <td>-</td><td>-</td><td>-</td><td>-</td>
+          <td>-</td><td>-</td><td>-</td>
           <td class="text-danger fw-bold">${fmtR$(fluxoLiquido[0])}</td>
           <td class="text-danger">${fmtR$(resDescontado.fluxoDescontado[0])}</td>
           <td class="text-danger">${fmtR$(resDescontado.acumuladoDescontado[0])}</td>
@@ -222,7 +207,6 @@ function executarSimulacao() {
           <td>Ano ${ano}</td>
           <td class="text-success">${fmtR$(economiaEnergia[ano])}</td>
           <td class="text-danger">${fmtR$(opex[ano])}</td>
-          <td>${trocaInversor[ano] > 0 ? fmtR$(trocaInversor[ano]) : '-'}</td>
           <td class="text-danger">${parcelaExibida}</td>
           <td class="${fluxoLiquido[ano] >= 0 ? 'text-success' : 'text-danger'} fw-bold">${fmtR$(fluxoLiquido[ano])}</td>
           <td class="${resSimples.fluxoAcumulado[ano] >= 0 ? 'text-success' : 'text-danger'} fw-bold">${fmtR$(resSimples.fluxoAcumulado[ano])}</td>
@@ -232,7 +216,6 @@ function executarSimulacao() {
           <td>Ano ${ano}</td>
           <td class="text-success">${fmtR$(economiaEnergia[ano])}</td>
           <td class="text-danger">${fmtR$(opex[ano])}</td>
-          <td>${trocaInversor[ano] > 0 ? fmtR$(trocaInversor[ano]) : '-'}</td>
           <td class="text-danger">${parcelaExibida}</td>
           <td class="${fluxoLiquido[ano] >= 0 ? 'text-success' : 'text-danger'} fw-bold">${fmtR$(fluxoLiquido[ano])}</td>
           <td>${fmtR$(resDescontado.fluxoDescontado[ano])}</td>
@@ -243,14 +226,14 @@ function executarSimulacao() {
     tbody.appendChild(tr);
   }
 
-  // 7. Parecer Técnico dinâmico com tratamento seguro para a TIR e o foco de Payback
+  // 7. Parecer Técnico dinâmico
   let textoPaybackFoco = tipoFocoPayback === 'simples' 
     ? `<b>Payback Simples (Foco da Análise):</b> Retorno nominal em <b>${resSimples.pbSimples ? resSimples.pbSimples.toFixed(1) + ' anos' : '> 25 anos'}</b>.`
     : `<b>Payback Descontado (Foco da Análise):</b> Retorno descontado a TMA em <b>${resDescontado.pbDescontado ? resDescontado.pbDescontado.toFixed(1) + ' anos' : '> 25 anos'}</b>.`;
 
   let trechoTirParecer = (resDescontado.tir !== null && !isNaN(resDescontado.tir))
     ? `com uma TIR de <b>${fmtPct(resDescontado.tir * 100)}</b> ao ano.`
-    : `sendo a TIR <b>inaplicável (modalidade de Leasing sem aporte inicial de capital próprio)</b>.`;
+    : `sendo a TIR <b>inaplicável (modalidade sem aporte inicial de capital próprio)</b>.`;
 
   document.getElementById('parecerTexto').innerHTML = `
     <p><b>Modalidade Selecionada:</b> <span class="badge bg-primary fs-6">${financiamento.linhaSelecionada.nome}</span></p>
@@ -266,31 +249,23 @@ function executarSimulacao() {
   renderizarGraficos(resSimples.fluxoAcumulado, resDescontado.acumuladoDescontado, economiaEnergia, opex);
 }
 
-// Função para gerar e baixar a planilha Excel com Múltiplas Abas e os parâmetros de entrada detalhados
+// Função para gerar e baixar a planilha Excel com Múltiplas Abas (Parâmetros acima do Resumo e Título FLUXO DE DADOS)
 function exportarPlanilhaMultiaabas() {
   const capex = parsePtBr(document.getElementById('capex')?.value);
-  const geracaoInicial = parsePtBr(document.getElementById('geracaoAnual')?.value);
-  const tarifaInicial = parsePtBr(document.getElementById('tarifaInicial')?.value);
+  const economiaInicial = parsePtBr(document.getElementById('economiaInicial')?.value);
   const opexInicial = parsePtBr(document.getElementById('opexInicial')?.value);
   const tmaVal = document.getElementById('tma')?.value;
   const reajusteVal = document.getElementById('reajusteTarifa')?.value;
   const ipcaVal = document.getElementById('ipca')?.value;
-  const degradacaoVal = document.getElementById('degradacao')?.value;
-  const pctTrocaInvVal = document.getElementById('trocaInversor')?.value;
 
   const tma = parsePtBr(tmaVal) / 100;
   const reajusteTarifa = parsePtBr(reajusteVal) / 100;
   const ipca = parsePtBr(ipcaVal) / 100;
-  const degradacao = parsePtBr(degradacaoVal) / 100;
-  const pctTrocaInv = parsePtBr(pctTrocaInvVal) / 100;
 
   const tipoFocoPayback = document.getElementById('tipoPaybackSelect')?.value || 'descontado';
 
-  // Cria um novo livro de Excel (Workbook)
   const wb = XLSX.utils.book_new();
-
-  // As 4 linhas oficiais mapeadas no seu objeto LINHAS_FINANCIAMENTO
-  const idsLinhas = [1, 2, 3, 4];
+  const idsLinhas = [0, 1, 2, 3, 4];
 
   idsLinhas.forEach(idLinha => {
     const financiamento = calcularFinanciamento(idLinha, capex);
@@ -298,63 +273,69 @@ function exportarPlanilhaMultiaabas() {
 
     let economiaEnergia = Array(26).fill(0);
     let opex = Array(26).fill(0);
-    let trocaInversor = Array(26).fill(0);
     let fluxoLiquido = Array(26).fill(0);
     fluxoLiquido[0] = -investimentoInicial;
 
     for (let ano = 1; ano <= 25; ano++) {
-      const geracaoAno = geracaoInicial * Math.pow(1 - degradacao, ano - 1);
-      const tarifaAno = tarifaInicial * Math.pow(1 + reajusteTarifa, ano - 1);
-      economiaEnergia[ano] = geracaoAno * tarifaAno;
+      economiaEnergia[ano] = economiaInicial * Math.pow(1 + reajusteTarifa, ano - 1);
       opex[ano] = opexInicial * Math.pow(1 + ipca, ano - 1);
-      if (ano === 12) {
-        trocaInversor[ano] = capex * pctTrocaInv * Math.pow(1 + ipca, ano - 1);
-      }
       let parcelaAnoCorrente = (ano <= financiamento.prazoAnos) ? financiamento.desembolsoAnual : 0;
-      fluxoLiquido[ano] = economiaEnergia[ano] - opex[ano] - trocaInversor[ano] - parcelaAnoCorrente;
+      fluxoLiquido[ano] = economiaEnergia[ano] - opex[ano] - parcelaAnoCorrente;
     }
 
     const resSimples = calcularPaybackSimples(fluxoLiquido, investimentoInicial);
     const resDescontado = calcularPaybackDescontado(fluxoLiquido, investimentoInicial, tma);
 
-    // Montagem dos dados da aba específica desta linha com os parâmetros de entrada solicitados
+    // Formatação dos indicadores
+    const vplFormatado = resDescontado.vpl.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    const statusVpl = resDescontado.vpl > 0 ? "Projeto Viável (VPL > 0)" : "Inviável (VPL < 0)";
+    
+    const tirFormatada = (resDescontado.tir !== null && !isNaN(resDescontado.tir)) 
+      ? (resDescontado.tir * 100).toFixed(2).replace('.', ',') + '%' 
+      : "Inaplicável";
+    const statusTir = (resDescontado.tir !== null && !isNaN(resDescontado.tir)) 
+      ? (resDescontado.tir > tma ? `Acima da TMA (${tmaVal}%)` : `Abaixo da TMA`) 
+      : "Modalidade sem Capex Inicial";
+
+    const pbDescFormatado = resDescontado.pbDescontado ? resDescontado.pbDescontado.toFixed(1).replace('.', ',') + ' anos' : '> 25 anos';
+    const pbSimplesFormatado = resSimples.pbSimples ? resSimples.pbSimples.toFixed(1).replace('.', ',') + ' anos' : '> 25 anos';
+
     let wsData = [
       ["RELATÓRIO DE VIABILIDADE - METALÚRGICA ALFA"],
       [`Modalidade:  ${financiamento.linhaSelecionada.nome}`],
       [`Prazo: ${financiamento.linhaSelecionada.prazo} meses | Taxa: ${(financiamento.linhaSelecionada.taxa * 100).toFixed(2)}% a.m.`],
       [`Foco de Análise:  ${tipoFocoPayback === 'simples' ? "Payback Simples (Nominal)" : "Payback Descontado (TMA)"}`],
-      [], // Linha em branco
-      // Títulos dos parâmetros de entrada
+      [],
+      ["--- PARÂMETROS DE ENTRADA ---"],
       [
         "CAPEX (R$)", 
-        "Geração Anual (kWh)", 
-        "Tarifa Inicial (R$/kWh)", 
+        "Economia Inicial (R$)", 
         "OPEX Inicial (R$)", 
         "TMA (%)", 
         "Reajuste Tarifário (%)", 
-        "IPCA / Inflação (%)", 
-        "Degradação Solar (%)", 
-        "Troca de Inversores (%)"
+        "IPCA / Inflação (%)"
       ],
-      // Valores correspondentes dos parâmetros de entrada
       [
         capex, 
-        geracaoInicial, 
-        tarifaInicial, 
+        economiaInicial, 
         opexInicial, 
         parsePtBr(tmaVal), 
         parsePtBr(reajusteVal), 
-        parsePtBr(ipcaVal), 
-        parsePtBr(degradacaoVal), 
-        parsePtBr(pctTrocaInvVal)
+        parsePtBr(ipcaVal)
       ],
-      [], // Linha em branco
-      // Cabeçalho da tabela de fluxo de caixa de 25 anos
+      [],
+      ["--- RESUMO DOS INDICADORES FINANCEIROS (CARDS) ---"],
+      ["Indicador", "Valor Calculado", "Status / Descrição"],
+      ["VPL (Valor Presente Líquido)", vplFormatado, statusVpl],
+      ["TIR (Taxa Interna de Retorno)", tirFormatada, statusTir],
+      ["Payback Descontado", pbDescFormatado, "Considerando o valor do dinheiro no tempo"],
+      ["Payback Simples", pbSimplesFormatado, "Retorno nominal direto"],
+      [],
+      ["--- FLUXO DE DADOS ---"],
       [
         "Ano", 
         "Economia de Energia (R$)", 
         "OPEX (R$)", 
-        "Troca Inversores (R$)", 
         "Financiamento (R$)", 
         "Fluxo Líquido (R$)", 
         "Fluxo Acumulado Simples (R$)", 
@@ -369,7 +350,6 @@ function exportarPlanilhaMultiaabas() {
         ano === 0 ? "Ano 0" : `Ano ${ano}`,
         ano === 0 ? 0 : economiaEnergia[ano],
         ano === 0 ? 0 : opex[ano],
-        trocaInversor[ano] || 0,
         parcelaExibida,
         fluxoLiquido[ano],
         resSimples.fluxoAcumulado[ano],
@@ -378,16 +358,25 @@ function exportarPlanilhaMultiaabas() {
       ]);
     }
 
-    // Cria a aba (worksheet) para esta linha
     const ws = XLSX.utils.aoa_to_sheet(wsData);
-    
-    // Define o nome da aba de forma limpa (ex: "Linha_1", "Linha_2", etc.)
-    const nomeAba = `Linha_${idLinha}`;
+
+    // Ajuste seguro da largura das colunas
+    ws['!cols'] = [
+      { wch: 30 }, // Coluna A
+      { wch: 25 }, // Coluna B
+      { wch: 42 }, // Coluna C
+      { wch: 22 }, // Coluna D
+      { wch: 22 }, // Coluna E
+      { wch: 28 }, // Coluna F
+      { wch: 24 }, // Coluna G
+      { wch: 28 }  // Coluna H
+    ];
+
+    const nomeAba = idLinha == 0 ? "Recursos_Proprios" : `Linha_${idLinha}`;
     XLSX.utils.book_append_sheet(wb, ws, nomeAba);
   });
 
-  // Dispara o download do arquivo contendo todas as abas
-  XLSX.writeFile(wb, "Simulacao_Completa_Todas_As_Linhas.xlsx");
+  XLSX.writeFile(wb, "Simulacao_Completa_Todas_As_Modalidades.xlsx");
 }
 
 function renderizarGraficos(acumuladoSimples, acumuladoDesc, economia, opex) {

@@ -36,21 +36,17 @@
       <div class="card-body">
         <form id="calcForm">
           <div class="row g-3">
-            <div class="col-md-3">
+            <div class="col-md-4">
               <label class="form-label fw-bold">CAPEX Total (R$)</label>
-              <input type="text" id="capex" class="form-control decimal-mask" value="2.078.220,00" required>
+              <input type="text" id="capex" class="form-control decimal-mask" value="1.249.555,00" required>
             </div>
-            <div class="col-md-3">
-              <label class="form-label">Geração Anual Estimada (kWh)</label>
-              <input type="text" id="geracaoAnual" class="form-control decimal-mask" value="1.100.000,00" required>
+            <div class="col-md-4">
+              <label class="form-label fw-bold">Economia Inicial de Energia (Ano 1) (R$)</label>
+              <input type="text" id="economiaInicial" class="form-control decimal-mask" value="702.000,00" required>
             </div>
-            <div class="col-md-3">
-              <label class="form-label">Tarifa Inicial de Energia (R$/kWh)</label>
-              <input type="text" id="tarifaInicial" class="form-control decimal-mask" value="0,75" required>
-            </div>
-            <div class="col-md-3">
-              <label class="form-label">OPEX Anual Inicial (R$)</label>
-              <input type="text" id="opexInicial" class="form-control decimal-mask" value="31.173,30" required>
+            <div class="col-md-4">
+              <label class="form-label fw-bold">OPEX Anual Inicial (R$)</label>
+              <input type="text" id="opexInicial" class="form-control decimal-mask" value="14.994,66" required>
             </div>
 
             <!-- SELETOR DO TIPO DE PAYBACK -->
@@ -64,58 +60,44 @@
               </select>
             </div>
 
-            <!-- SELETOR DA LINHA DE FINANCIAMENTO -->
+            <!-- SELETOR DA MODALIDADE / FINANCIAMENTO -->
             <div class="col-md-6">
               <label class="form-label fw-bold text-success">
-                <i class="bi bi-bank me-1"></i> Linha de Financiamento:
+                <i class="bi bi-bank me-1"></i> Modalidade de Investimento:
               </label>
               <select id="linhaFinanciamentoSelect" class="form-select border-success">
+                <option value="0" selected>Recursos Próprios (100% Capital Próprio / Sem Financiamento)</option>
                 <option value="1">Linha 1 – Crédito Eficiência Energética (0,98% a.m., 72m, 6m carência, 20% ent.)</option>
                 <option value="2">Linha 2 – Energia Renovável Empresarial (1,15% a.m., 60m, 3m carência, 10% ent.)</option>
-                <option value="3" selected>Linha 3 – Cooperativa de Crédito Solar (0,85% a.m., 84m, 12m carência, 15% ent.)</option>
+                <option value="3">Linha 3 – Cooperativa de Crédito Solar (0,85% a.m., 84m, 12m carência, 15% ent.)</option>
                 <option value="4">Linha 4 – Leasing Empresarial / BTS (Parcela fixa, 120m, sem entrada)</option>
               </select>
             </div>
 
-            <div class="col-md-3">
+            <div class="col-md-4">
               <label class="form-label">Taxa de Desconto / TMA (a.a.)</label>
               <div class="input-group">
                 <input type="text" id="tma" class="form-control decimal-mask" value="9,25" required>
                 <span class="input-group-text">%</span>
               </div>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-4">
               <label class="form-label">Reajuste Tarifário</label>
               <div class="input-group">
                 <input type="text" id="reajusteTarifa" class="form-control decimal-mask" value="6,68" required>
                 <span class="input-group-text">%</span>
               </div>
             </div>
-            <div class="col-md-2">
+            <div class="col-md-4">
               <label class="form-label">Inflação / IPCA</label>
               <div class="input-group">
                 <input type="text" id="ipca" class="form-control decimal-mask" value="4,82" required>
                 <span class="input-group-text">%</span>
               </div>
             </div>
-
-            <div class="col-md-3">
-              <label class="form-label">Degradação Solar Anual</label>
-              <div class="input-group">
-                <input type="text" id="degradacao" class="form-control decimal-mask" value="0,5" required>
-                <span class="input-group-text">%</span>
-              </div>
-            </div>
-            <div class="col-md-3">
-              <label class="form-label">Troca Inversores (Ano 12)</label>
-              <div class="input-group">
-                <input type="text" id="trocaInversor" class="form-control decimal-mask" value="13,3" required>
-                <span class="input-group-text">%</span>
-              </div>
-            </div>
             
             <!-- BOTÃO DE AÇÃO ÚNICO (CALCULAR) -->
-            <div class="col-md-6 d-flex align-items-end">
+            <div class="col-md-12 d-flex align-items-end mt-2">
               <button type="submit" class="btn btn-success w-100 fw-bold shadow-sm py-2">
                 <i class="bi bi-calculator me-2"></i> CALCULAR
               </button>
@@ -201,7 +183,7 @@
       <div class="card shadow-sm mb-5 border-0">
         <div class="card-header bg-white font-weight-bold d-flex justify-content-between align-items-center flex-wrap gap-2">
           <span id="tabelaTitulo" class="d-flex align-items-center">
-            <i class="bi bi-table text-primary me-2"></i> Tabela Detalhada - Foc em Payback Descontado (TMA)
+            <i class="bi bi-table text-primary me-2"></i> Tabela Detalhada - Foco em Payback Descontado (TMA)
           </span>
           <div class="d-flex align-items-center gap-3">
             <small class="text-muted">Valores em Reais (R$)</small>
@@ -226,8 +208,7 @@
     </div>
   </div>
 
-  <!-- Biblioteca SheetJS para exportação de Excel com múltiplas abas -->
-  <script src="services/bcbApi.js"></script>
+  <!-- Bibliotecas de suporte -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="js/financiamento.js"></script>

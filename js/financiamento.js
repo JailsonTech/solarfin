@@ -1,5 +1,6 @@
-// Parâmetros oficiais das 4 Linhas de Financiamento
+// Parâmetros oficiais das 4 Linhas de Financiamento + Recursos Próprios
 const LINHAS_FINANCIAMENTO = {
+  0: { nome: "Recursos Próprios (100% Capital Próprio / Sem Financiamento)", taxa: 0, prazo: 0, carencia: 0, entradaPct: 1.00, max: Infinity, tipo: "proprio" },
   1: { nome: "Linha 1 – Crédito Eficiência Energética", taxa: 0.0098, prazo: 72, carencia: 6, entradaPct: 0.20, max: 3000000, tipo: "financiamento" },
   2: { nome: "Linha 2 – Energia Renovável Empresarial", taxa: 0.0115, prazo: 60, carencia: 3, entradaPct: 0.10, max: 5000000, tipo: "financiamento" },
   3: { nome: "Linha 3 – Cooperativa de Crédito Solar", taxa: 0.0085, prazo: 84, carencia: 12, entradaPct: 0.15, max: 2500000, tipo: "financiamento" },
@@ -7,15 +8,21 @@ const LINHAS_FINANCIAMENTO = {
 };
 
 function calcularFinanciamento(idLinha, capex) {
-  const linha = LINHAS_FINANCIAMENTO[idLinha] || LINHAS_FINANCIAMENTO[3];
+  const linha = LINHAS_FINANCIAMENTO[idLinha] || LINHAS_FINANCIAMENTO[0];
   
   let valorEntrada = 0;
   let valorFinanciado = 0;
   let prestacaoMensal = 0;
   let desembolsoAnual = 0;
-  let prazoAnos = Math.ceil(linha.prazo / 12);
+  let prazoAnos = linha.prazo > 0 ? Math.ceil(linha.prazo / 12) : 0;
 
-  if (linha.tipo === "financiamento") {
+  if (linha.tipo === "proprio") {
+    valorEntrada = capex;
+    valorFinanciado = 0;
+    prestacaoMensal = 0;
+    desembolsoAnual = 0;
+    prazoAnos = 0;
+  } else if (linha.tipo === "financiamento") {
     valorEntrada = capex * linha.entradaPct;
     valorFinanciado = Math.min(capex - valorEntrada, linha.max);
     
