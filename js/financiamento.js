@@ -1,14 +1,12 @@
-// Parâmetros oficiais das 4 Linhas de Financiamento + Recursos Próprios
+// Parâmetros oficiais das 3 Propostas do Enunciado (Metalúrgica Alfa)
 const LINHAS_FINANCIAMENTO = {
-  0: { nome: "Recursos Próprios (100% Capital Próprio / Sem Financiamento)", taxa: 0, prazo: 0, carencia: 0, entradaPct: 1.00, max: Infinity, tipo: "proprio" },
-  1: { nome: "Linha 1 – Crédito Eficiência Energética", taxa: 0.0098, prazo: 72, carencia: 6, entradaPct: 0.20, max: 3000000, tipo: "financiamento" },
-  2: { nome: "Linha 2 – Energia Renovável Empresarial", taxa: 0.0115, prazo: 60, carencia: 3, entradaPct: 0.10, max: 5000000, tipo: "financiamento" },
-  3: { nome: "Linha 3 – Cooperativa de Crédito Solar", taxa: 0.0085, prazo: 84, carencia: 12, entradaPct: 0.15, max: 2500000, tipo: "financiamento" },
-  4: { nome: "Linha 4 – Leasing Empresarial (BTS)", taxa: 0.01, prazo: 120, carencia: 0, entradaPct: 0.00, max: Infinity, tipo: "leasing" }
+  1: { nome: "1 – Recursos Próprios (100% Capital Próprio)", taxa: 0, prazo: 0, carencia: 0, entradaPct: 1.00, max: Infinity, tipo: "proprio" },
+  2: { nome: "2 – Financiamento em 60 parcelas", taxa: 0.0115, prazo: 60, carencia: 0, entradaPct: 0.00, max: Infinity, tipo: "financiamento" },
+  3: { nome: "3 – Leasing operacional (10 anos, com opção de compra)", taxa: 0.01, prazo: 120, carencia: 0, entradaPct: 0.00, max: Infinity, tipo: "leasing" }
 };
 
 function calcularFinanciamento(idLinha, capex) {
-  const linha = LINHAS_FINANCIAMENTO[idLinha] || LINHAS_FINANCIAMENTO[0];
+  const linha = LINHAS_FINANCIAMENTO[idLinha] || LINHAS_FINANCIAMENTO[1];
   
   let valorEntrada = 0;
   let valorFinanciado = 0;
@@ -35,11 +33,12 @@ function calcularFinanciamento(idLinha, capex) {
     desembolsoAnual = prestacaoMensal * 12;
 
   } else if (linha.tipo === "leasing") {
-    // Linha 4: Leasing BTS (Sem entrada, parcela fixa mensal, opção de compra ao final)
+    // Alternativa 3: Leasing operacional (10 anos / 120 meses com opção de compra)
     valorEntrada = 0; 
     valorFinanciado = capex;
-    // Parcela fixa estimada baseada no CAPEX dividido pelo prazo (ou taxa contratual de BTS)
-    prestacaoMensal = (capex * (linha.taxa + (1 / linha.prazo))); 
+    const i = linha.taxa;
+    const n = linha.prazo;
+    prestacaoMensal = (valorFinanciado * (i * Math.pow(1 + i, n)) / (Math.pow(1 + i, n) - 1));
     desembolsoAnual = prestacaoMensal * 12;
   }
 

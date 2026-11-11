@@ -8,7 +8,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnExportar = document.getElementById('btnExportarExcel');
   const btnBaixarTabela = document.getElementById('btnBaixarExcelTabela');
 
-  // 1. Dispara o cálculo ao enviar o formulário
   if (form) {
     form.addEventListener('submit', function(e) {
       e.preventDefault();
@@ -16,7 +15,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // --- REATIVIDADE AUTOMÁTICA DOS SELECTS ---
   if (linhaSelect) {
     linhaSelect.addEventListener('change', executarSimulacao);
   }
@@ -24,7 +22,6 @@ document.addEventListener('DOMContentLoaded', () => {
     paybackSelect.addEventListener('change', executarSimulacao);
   }
 
-  // --- BOTÕES DE EXPORTAÇÃO PARA O EXCEL (MÚLTIPLAS ABAS) ---
   if (btnExportar) {
     btnExportar.addEventListener('click', exportarPlanilhaMultiaabas);
   }
@@ -32,20 +29,14 @@ document.addEventListener('DOMContentLoaded', () => {
     btnBaixarTabela.addEventListener('click', exportarPlanilhaMultiaabas);
   }
 
-  // Máscaras de input numéricas com formatação bancária em tempo real (estilo moeda R$)
   document.querySelectorAll('.decimal-mask').forEach(input => {
     input.addEventListener('input', function(e) {
-      let valor = e.target.value.replace(/\D/g, ""); // Remove tudo que não for dígito
-      
+      let valor = e.target.value.replace(/\D/g, "");
       if (valor === "") {
         e.target.value = "";
         return;
       }
-
-      // Converte para número decimal considerando os últimos 2 dígitos como centavos
       let numero = parseFloat(valor) / 100;
-
-      // Formata no padrão brasileiro (R$ / milhares com ponto e decimais com vírgula)
       e.target.value = numero.toLocaleString('pt-BR', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
@@ -53,7 +44,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Executa o cálculo inicial automaticamente ao carregar a página com os dados preenchidos
   executarSimulacao();
 });
 
@@ -79,44 +69,33 @@ function executarSimulacao() {
   const reajusteTarifa = parsePtBr(document.getElementById('reajusteTarifa')?.value) / 100;
   const ipca = parsePtBr(document.getElementById('ipca')?.value) / 100;
 
-  // 1. Captura as escolhas dos dois selects
-  const idLinha = document.getElementById('linhaFinanciamentoSelect')?.value || '0';
+  const idLinha = document.getElementById('linhaFinanciamentoSelect')?.value || '1';
   const tipoFocoPayback = document.getElementById('tipoPaybackSelect')?.value || 'descontado';
 
-  // 2. Processa o financiamento da linha escolhida via módulo dedicado (financiamento.js)
   const financiamento = calcularFinanciamento(idLinha, capex);
-  const investimentoInicial = financiamento.valorEntrada; // Se for Recursos Próprios, valorEntrada = capex.
+  const investimentoInicial = financiamento.valorEntrada; 
 
   let economiaEnergia = Array(26).fill(0);
   let opex = Array(26).fill(0);
-  let trocaInversor = Array(26).fill(0);
   let fluxoLiquido = Array(26).fill(0);
 
   fluxoLiquido[0] = -investimentoInicial;
 
   for (let ano = 1; ano <= 25; ano++) {
-    // Economia reajustada diretamente pelo índice de reajuste tarifário
     economiaEnergia[ano] = economiaInicial * Math.pow(1 + reajusteTarifa, ano - 1);
     opex[ano] = opexInicial * Math.pow(1 + ipca, ano - 1);
-
-    // Abate a parcela anual do financiamento durante o prazo da linha
     let parcelaAnoCorrente = (ano <= financiamento.prazoAnos) ? financiamento.desembolsoAnual : 0;
-
     fluxoLiquido[ano] = economiaEnergia[ano] - opex[ano] - parcelaAnoCorrente;
   }
 
-  // 3. Executa os cálculos matemáticos independentes de Payback (Simples e Descontado)
   const resSimples = calcularPaybackSimples(fluxoLiquido, investimentoInicial);
   const resDescontado = calcularPaybackDescontado(fluxoLiquido, investimentoInicial, tma);
 
-  // Exibe a seção de resultados na interface
   document.getElementById('resultadosSection').classList.remove('d-none');
 
-  // 4. Atribuição dos resultados nos cards do dashboard
   document.getElementById('vplVal').innerText = fmtR$(resDescontado.vpl);
   document.getElementById('vplSub').innerText = resDescontado.vpl > 0 ? "Projeto Viável (VPL > 0)" : "Inviável (VPL < 0)";
   
-  // Tratamento seguro da TIR
   if (resDescontado.tir !== null && !isNaN(resDescontado.tir)) {
     document.getElementById('tirVal').innerText = fmtPct(resDescontado.tir * 100);
     document.getElementById('tirSub').innerText = resDescontado.tir > tma ? `Acima da TMA (${fmtPct(tma * 100)})` : `Abaixo da TMA`;
@@ -128,7 +107,6 @@ function executarSimulacao() {
   document.getElementById('pbDescVal').innerText = resDescontado.pbDescontado ? `${resDescontado.pbDescontado.toFixed(1)} anos` : '> 25 anos';
   document.getElementById('pbSimplesVal').innerText = resSimples.pbSimples ? `${resSimples.pbSimples.toFixed(1)} anos` : '> 25 anos';
 
-  // 5. DESTAQUE VISUAL DINÂMICO CONFORME O SELECT DE PAYBACK ESCOLHIDO
   const cardDesc = document.getElementById('cardPbDesc');
   const cardSimples = document.getElementById('cardPbSimples');
 
@@ -147,7 +125,6 @@ function executarSimulacao() {
     }
   }
 
-  // 6. MONTAGEM DINÂMICA DA TABELA
   const theadTr = document.getElementById('tabelaCabecalho');
   const tituloTabela = document.getElementById('tabelaTitulo');
   const tbody = document.querySelector('#tabelaFC tbody');
@@ -226,7 +203,6 @@ function executarSimulacao() {
     tbody.appendChild(tr);
   }
 
-  // 7. Parecer Técnico dinâmico
   let textoPaybackFoco = tipoFocoPayback === 'simples' 
     ? `<b>Payback Simples (Foco da Análise):</b> Retorno nominal em <b>${resSimples.pbSimples ? resSimples.pbSimples.toFixed(1) + ' anos' : '> 25 anos'}</b>.`
     : `<b>Payback Descontado (Foco da Análise):</b> Retorno descontado a TMA em <b>${resDescontado.pbDescontado ? resDescontado.pbDescontado.toFixed(1) + ' anos' : '> 25 anos'}</b>.`;
@@ -249,7 +225,6 @@ function executarSimulacao() {
   renderizarGraficos(resSimples.fluxoAcumulado, resDescontado.acumuladoDescontado, economiaEnergia, opex);
 }
 
-// Função para gerar e baixar a planilha Excel com Múltiplas Abas (Com separador de milhares ativado)
 function exportarPlanilhaMultiaabas() {
   const capex = parsePtBr(document.getElementById('capex')?.value);
   const economiaInicial = parsePtBr(document.getElementById('economiaInicial')?.value);
@@ -263,9 +238,8 @@ function exportarPlanilhaMultiaabas() {
   const ipca = parsePtBr(ipcaVal) / 100;
 
   const tipoFocoPayback = document.getElementById('tipoPaybackSelect')?.value || 'descontado';
-
   const wb = XLSX.utils.book_new();
-  const idsLinhas = [0, 1, 2, 3, 4];
+  const idsLinhas = [1, 2, 3]; // Apenas as 3 Alternativas do enunciado
 
   idsLinhas.forEach(idLinha => {
     const financiamento = calcularFinanciamento(idLinha, capex);
@@ -286,7 +260,6 @@ function exportarPlanilhaMultiaabas() {
     const resSimples = calcularPaybackSimples(fluxoLiquido, investimentoInicial);
     const resDescontado = calcularPaybackDescontado(fluxoLiquido, investimentoInicial, tma);
 
-    // Formatação dos indicadores
     const vplFormatado = resDescontado.vpl.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
     const statusVpl = resDescontado.vpl > 0 ? "Projeto Viável (VPL > 0)" : "Inviável (VPL < 0)";
     
@@ -300,7 +273,6 @@ function exportarPlanilhaMultiaabas() {
     const pbDescFormatado = resDescontado.pbDescontado ? resDescontado.pbDescontado.toFixed(1).replace('.', ',') + ' anos' : '> 25 anos';
     const pbSimplesFormatado = resSimples.pbSimples ? resSimples.pbSimples.toFixed(1).replace('.', ',') + ' anos' : '> 25 anos';
 
-    // Textos do Parecer Técnico-Financeiro para o Excel
     const recomendacaoTexto = resDescontado.vpl > 0 ? "RECOMENDADA A IMPLANTAÇÃO" : "NÃO RECOMENDADO";
     const tirTextoFormatada = (resDescontado.tir !== null && !isNaN(resDescontado.tir)) ? `${(resDescontado.tir * 100).toFixed(2).replace('.', ',')}% ao ano` : "inaplicável (modalidade sem aporte inicial)";
     const paybackDescTexto = resDescontado.pbDescontado ? `${resDescontado.pbDescontado.toFixed(1).replace('.', ',')} anos` : '> 25 anos';
@@ -373,8 +345,6 @@ function exportarPlanilhaMultiaabas() {
     }
 
     const ws = XLSX.utils.aoa_to_sheet(wsData);
-
-    // Ativa a formatação de números com separador de milhares e exatamente 2 casas decimais no Excel
     const range = XLSX.utils.decode_range(ws['!ref']);
     for (let R = range.s.r; R <= range.e.r; ++R) {
       for (let C = range.s.c; C <= range.e.c; ++C) {
@@ -387,23 +357,21 @@ function exportarPlanilhaMultiaabas() {
       }
     }
 
-    // Ajuste seguro da largura das colunas
     ws['!cols'] = [
-      { wch: 30 }, // Coluna A
-      { wch: 35 }, // Coluna B
-      { wch: 45 }, // Coluna C
-      { wch: 22 }, // Coluna D
-      { wch: 22 }, // Coluna E
-      { wch: 28 }, // Coluna F
-      { wch: 24 }, // Coluna G
-      { wch: 28 }  // Coluna H
+      { wch: 30 }, { wch: 35 }, { wch: 45 }, { wch: 22 }, 
+      { wch: 22 }, { wch: 28 }, { wch: 24 }, { wch: 28 }
     ];
 
-    const nomeAba = idLinha == 0 ? "Recursos_Proprios" : `Linha_${idLinha}`;
-    XLSX.utils.book_append_sheet(wb, ws, nomeAba);
+    const nomesAbas = {
+      1: "Recursos_Proprios",
+      2: "Financ_60m",
+      3: "Leasing"
+    };
+
+    XLSX.utils.book_append_sheet(wb, ws, nomesAbas[idLinha]);
   });
 
-  XLSX.writeFile(wb, "Simulacao_Completa_Todas_As_Modalidades.xlsx");
+  XLSX.writeFile(wb, "Simulacao_Metalurgica_Alfa_3.xlsx");
 }
 
 function renderizarGraficos(acumuladoSimples, acumuladoDesc, economia, opex) {
