@@ -1,3 +1,5 @@
+// --- DASHBOARD SCRIPT ---
+
 let chartFC = null;
 let chartComp = null;
 
@@ -62,18 +64,31 @@ function parsePtBr(valorStr) {
 }
 
 function executarSimulacao() {
-  const capex = parsePtBr(document.getElementById('capex')?.value);
-  const economiaInicial = parsePtBr(document.getElementById('economiaInicial')?.value);
-  const opexInicial = parsePtBr(document.getElementById('opexInicial')?.value);
-  const tma = parsePtBr(document.getElementById('tma')?.value) / 100;
-  const reajusteTarifa = parsePtBr(document.getElementById('reajusteTarifa')?.value) / 100;
-  const ipca = parsePtBr(document.getElementById('ipca')?.value) / 100;
+  const capexEl = document.getElementById('capex');
+  const economiaEl = document.getElementById('economiaInicial');
+  const opexEl = document.getElementById('opexInicial');
+  const tmaEl = document.getElementById('tma');
+  const reajusteEl = document.getElementById('reajusteTarifa');
+  const ipcaEl = document.getElementById('ipca');
 
-  const idLinha = document.getElementById('linhaFinanciamentoSelect')?.value || '1';
-  const tipoFocoPayback = document.getElementById('tipoPaybackSelect')?.value || 'descontado';
+  const capex = parsePtBr(capexEl ? capexEl.value : 0);
+  const economiaInicial = parsePtBr(economiaEl ? economiaEl.value : 0);
+  const opexInicial = parsePtBr(opexEl ? opexEl.value : 0);
+  const tma = parsePtBr(tmaEl ? tmaEl.value : 0) / 100;
+  const reajusteTarifa = parsePtBr(reajusteEl ? reajusteEl.value : 0) / 100;
+  const ipca = parsePtBr(ipcaEl ? ipcaEl.value : 0) / 100;
+
+  const linhaSelectEl = document.getElementById('linhaFinanciamentoSelect');
+  const paybackSelectEl = document.getElementById('tipoPaybackSelect');
+
+  const idLinha = linhaSelectEl ? linhaSelectEl.value : '1';
+  const tipoFocoPayback = paybackSelectEl ? paybackSelectEl.value : 'descontado';
 
   const financiamento = calcularFinanciamento(idLinha, capex);
-  const investimentoInicial = financiamento.valorEntrada; 
+  
+  // Para fins de análise de payback do projeto, utiliza-se o CAPEX total do ativo
+  // independentemente se houve entrada ou financiamento de 100%
+  const investimentoInicial = capex; 
 
   let economiaEnergia = Array(26).fill(0);
   let opex = Array(26).fill(0);
@@ -91,21 +106,28 @@ function executarSimulacao() {
   const resSimples = calcularPaybackSimples(fluxoLiquido, investimentoInicial);
   const resDescontado = calcularPaybackDescontado(fluxoLiquido, investimentoInicial, tma);
 
-  document.getElementById('resultadosSection').classList.remove('d-none');
+  const resultadosSec = document.getElementById('resultadosSection');
+  if (resultadosSec) resultadosSec.classList.remove('d-none');
 
-  document.getElementById('vplVal').innerText = fmtR$(resDescontado.vpl);
-  document.getElementById('vplSub').innerText = resDescontado.vpl > 0 ? "Projeto Viável (VPL > 0)" : "Inviável (VPL < 0)";
+  const vplValEl = document.getElementById('vplVal');
+  const vplSubEl = document.getElementById('vplSub');
+  if (vplValEl) vplValEl.innerText = fmtR$(resDescontado.vpl);
+  if (vplSubEl) vplSubEl.innerText = resDescontado.vpl > 0 ? "Projeto Viável (VPL > 0)" : "Inviável (VPL < 0)";
   
+  const tirValEl = document.getElementById('tirVal');
+  const tirSubEl = document.getElementById('tirSub');
   if (resDescontado.tir !== null && !isNaN(resDescontado.tir)) {
-    document.getElementById('tirVal').innerText = fmtPct(resDescontado.tir * 100);
-    document.getElementById('tirSub').innerText = resDescontado.tir > tma ? `Acima da TMA (${fmtPct(tma * 100)})` : `Abaixo da TMA`;
+    if (tirValEl) tirValEl.innerText = fmtPct(resDescontado.tir * 100);
+    if (tirSubEl) tirSubEl.innerText = resDescontado.tir > tma ? `Acima da TMA (${fmtPct(tma * 100)})` : `Abaixo da TMA`;
   } else {
-    document.getElementById('tirVal').innerText = "N/A";
-    document.getElementById('tirSub').innerText = "Inaplicável (Modalidade sem Capex Inicial)";
+    if (tirValEl) tirValEl.innerText = "N/A";
+    if (tirSubEl) tirSubEl.innerText = "Inaplicável";
   }
 
-  document.getElementById('pbDescVal').innerText = resDescontado.pbDescontado ? `${resDescontado.pbDescontado.toFixed(1)} anos` : '> 25 anos';
-  document.getElementById('pbSimplesVal').innerText = resSimples.pbSimples ? `${resSimples.pbSimples.toFixed(1)} anos` : '> 25 anos';
+  const pbDescValEl = document.getElementById('pbDescVal');
+  const pbSimplesValEl = document.getElementById('pbSimplesVal');
+  if (pbDescValEl) pbDescValEl.innerText = resDescontado.pbDescontado ? `${resDescontado.pbDescontado.toFixed(1)} anos` : '> 25 anos';
+  if (pbSimplesValEl) pbSimplesValEl.innerText = resSimples.pbSimples ? `${resSimples.pbSimples.toFixed(1)} anos` : '> 25 anos';
 
   const cardDesc = document.getElementById('cardPbDesc');
   const cardSimples = document.getElementById('cardPbSimples');
@@ -128,7 +150,7 @@ function executarSimulacao() {
   const theadTr = document.getElementById('tabelaCabecalho');
   const tituloTabela = document.getElementById('tabelaTitulo');
   const tbody = document.querySelector('#tabelaFC tbody');
-  tbody.innerHTML = '';
+  if (tbody) tbody.innerHTML = '';
 
   if (tipoFocoPayback === 'simples') {
     if (tituloTabela) tituloTabela.innerHTML = `<i class="bi bi-table text-primary me-2"></i> Tabela Detalhada - Foco em Payback Simples (Nominal)`;
@@ -200,7 +222,7 @@ function executarSimulacao() {
         `;
       }
     }
-    tbody.appendChild(tr);
+    if (tbody) tbody.appendChild(tr);
   }
 
   let textoPaybackFoco = tipoFocoPayback === 'simples' 
@@ -209,41 +231,53 @@ function executarSimulacao() {
 
   let trechoTirParecer = (resDescontado.tir !== null && !isNaN(resDescontado.tir))
     ? `com uma TIR de <b>${fmtPct(resDescontado.tir * 100)}</b> ao ano.`
-    : `sendo a TIR <b>inaplicável (modalidade sem aporte inicial de capital próprio)</b>.`;
+    : `sendo a TIR <b>inaplicável</b>.`;
 
-  document.getElementById('parecerTexto').innerHTML = `
-    <p><b>Modalidade Selecionada:</b> <span class="badge bg-primary fs-6">${financiamento.linhaSelecionada.nome}</span></p>
-    <ul>
-      <li>Desembolso Inicial (Entrada): <b>${fmtR$(financiamento.valorEntrada)}</b> | Valor Financiado/Leasing: <b>${fmtR$(financiamento.valorFinanciado)}</b></li>
-      <li>Prazo: <b>${financiamento.linhaSelecionada.prazo} meses</b> | Parcela Estimada: <b>${fmtR$(financiamento.prestacaoMensal)}/mês</b></li>
-    </ul>
-    <p><b>Recomendação Final:</b> <span class="badge bg-${resDescontado.vpl > 0 ? 'success' : 'danger'} fs-6">${resDescontado.vpl > 0 ? 'RECOMENDADA A IMPLANTAÇÃO' : 'NÃO RECOMENDADO'}</span></p>
-    <p>O VPL calculado é de <b>${fmtR$(resDescontado.vpl)}</b> ${trechoTirParecer}</p>
-    <p>${textoPaybackFoco}</p>
-  `;
+  const parecerTextoEl = document.getElementById('parecerTexto');
+  if (parecerTextoEl) {
+    parecerTextoEl.innerHTML = `
+      <p><b>Modalidade Selecionada:</b> <span class="badge bg-primary fs-6">${financiamento.linhaSelecionada.nome}</span></p>
+      <ul>
+        <li>Desembolso Inicial (Entrada): <b>${fmtR$(financiamento.valorEntrada)}</b> | Valor Financiado/Leasing: <b>${fmtR$(financiamento.valorFinanciado)}</b></li>
+        <li>Prazo: <b>${financiamento.linhaSelecionada.prazo} meses</b> | Parcela Estimada: <b>${fmtR$(financiamento.prestacaoMensal)}/mês</b></li>
+      </ul>
+      <p><b>Recomendação Final:</b> <span class="badge bg-${resDescontado.vpl > 0 ? 'success' : 'danger'} fs-6">${resDescontado.vpl > 0 ? 'RECOMENDADA A IMPLANTAÇÃO' : 'NÃO RECOMENDADO'}</span></p>
+      <p>O VPL calculado é de <b>${fmtR$(resDescontado.vpl)}</b> ${trechoTirParecer}</p>
+      <p>${textoPaybackFoco}</p>
+    `;
+  }
 
   renderizarGraficos(resSimples.fluxoAcumulado, resDescontado.acumuladoDescontado, economiaEnergia, opex);
 }
 
 function exportarPlanilhaMultiaabas() {
-  const capex = parsePtBr(document.getElementById('capex')?.value);
-  const economiaInicial = parsePtBr(document.getElementById('economiaInicial')?.value);
-  const opexInicial = parsePtBr(document.getElementById('opexInicial')?.value);
-  const tmaVal = document.getElementById('tma')?.value;
-  const reajusteVal = document.getElementById('reajusteTarifa')?.value;
-  const ipcaVal = document.getElementById('ipca')?.value;
+  const capexVal = document.getElementById('capex');
+  const economiaVal = document.getElementById('economiaInicial');
+  const opexVal = document.getElementById('opexInicial');
+  const tmaValEl = document.getElementById('tma');
+  const reajusteValEl = document.getElementById('reajusteTarifa');
+  const ipcaValEl = document.getElementById('ipca');
+
+  const capex = parsePtBr(capexVal ? capexVal.value : 0);
+  const economiaInicial = parsePtBr(economiaVal ? economiaVal.value : 0);
+  const opexInicial = parsePtBr(opexVal ? opexVal.value : 0);
+  const tmaVal = tmaValEl ? tmaValEl.value : '0';
+  const reajusteVal = reajusteValEl ? reajusteValEl.value : '0';
+  const ipcaVal = ipcaValEl ? ipcaValEl.value : '0';
 
   const tma = parsePtBr(tmaVal) / 100;
   const reajusteTarifa = parsePtBr(reajusteVal) / 100;
   const ipca = parsePtBr(ipcaVal) / 100;
 
-  const tipoFocoPayback = document.getElementById('tipoPaybackSelect')?.value || 'descontado';
+  const tipoFocoPaybackEl = document.getElementById('tipoPaybackSelect');
+  const tipoFocoPayback = tipoFocoPaybackEl ? tipoFocoPaybackEl.value : 'descontado';
+  
   const wb = XLSX.utils.book_new();
-  const idsLinhas = [1, 2, 3]; // Apenas as 3 Alternativas do enunciado
+  const idsLinhas = [1, 2, 3]; 
 
   idsLinhas.forEach(idLinha => {
     const financiamento = calcularFinanciamento(idLinha, capex);
-    const investimentoInicial = Number(financiamento.valorEntrada.toFixed(2));
+    const investimentoInicial = Number(capex.toFixed(2));
 
     let economiaEnergia = Array(26).fill(0);
     let opex = Array(26).fill(0);
@@ -268,13 +302,13 @@ function exportarPlanilhaMultiaabas() {
       : "Inaplicável";
     const statusTir = (resDescontado.tir !== null && !isNaN(resDescontado.tir)) 
       ? (resDescontado.tir > tma ? `Acima da TMA (${tmaVal}%)` : `Abaixo da TMA`) 
-      : "Modalidade sem Capex Inicial";
+      : "Inaplicável";
 
     const pbDescFormatado = resDescontado.pbDescontado ? resDescontado.pbDescontado.toFixed(1).replace('.', ',') + ' anos' : '> 25 anos';
     const pbSimplesFormatado = resSimples.pbSimples ? resSimples.pbSimples.toFixed(1).replace('.', ',') + ' anos' : '> 25 anos';
 
     const recomendacaoTexto = resDescontado.vpl > 0 ? "RECOMENDADA A IMPLANTAÇÃO" : "NÃO RECOMENDADO";
-    const tirTextoFormatada = (resDescontado.tir !== null && !isNaN(resDescontado.tir)) ? `${(resDescontado.tir * 100).toFixed(2).replace('.', ',')}% ao ano` : "inaplicável (modalidade sem aporte inicial)";
+    const tirTextoFormatada = (resDescontado.tir !== null && !isNaN(resDescontado.tir)) ? `${(resDescontado.tir * 100).toFixed(2).replace('.', ',')}% ao ano` : "inaplicável";
     const paybackDescTexto = resDescontado.pbDescontado ? `${resDescontado.pbDescontado.toFixed(1).replace('.', ',')} anos` : '> 25 anos';
 
     let wsData = [
@@ -380,45 +414,51 @@ function renderizarGraficos(acumuladoSimples, acumuladoDesc, economia, opex) {
   if (chartFC) chartFC.destroy();
   if (chartComp) chartComp.destroy();
 
-  const ctx1 = document.getElementById('chartFC').getContext('2d');
-  chartFC = new Chart(ctx1, {
-    type: 'line',
-    data: {
-      labels: anosLabels,
-      datasets: [
-        {
-          label: 'Acumulado Simples (R$)',
-          data: acumuladoSimples,
-          borderColor: '#495057',
-          fill: false,
-          tension: 0.2
-        },
-        {
-          label: 'Acumulado Descontado (TMA) (R$)',
-          data: acumuladoDesc,
-          borderColor: '#198754',
-          borderDash: [5, 5],
-          fill: true,
-          backgroundColor: 'rgba(25, 135, 84, 0.1)',
-          tension: 0.2
-        }
-      ]
-    },
-    options: { responsive: true }
-  });
+  const ctx1Elem = document.getElementById('chartFC');
+  if (ctx1Elem) {
+    const ctx1 = ctx1Elem.getContext('2d');
+    chartFC = new Chart(ctx1, {
+      type: 'line',
+      data: {
+        labels: anosLabels,
+        datasets: [
+          {
+            label: 'Acumulado Simples (R$)',
+            data: acumuladoSimples,
+            borderColor: '#495057',
+            fill: false,
+            tension: 0.2
+          },
+          {
+            label: 'Acumulado Descontado (TMA) (R$)',
+            data: acumuladoDesc,
+            borderColor: '#198754',
+            borderDash: [5, 5],
+            fill: true,
+            backgroundColor: 'rgba(25, 135, 84, 0.1)',
+            tension: 0.2
+          }
+        ]
+      },
+      options: { responsive: true }
+    });
+  }
 
   const anoRef = 5;
-  const ctx2 = document.getElementById('chartComp').getContext('2d');
-  chartComp = new Chart(ctx2, {
-    type: 'bar',
-    data: {
-      labels: ['Economia de Energia', 'Custos OPEX'],
-      datasets: [{
-        label: `Valores no Ano ${anoRef} (R$)`,
-        data: [economia[anoRef], opex[anoRef]],
-        backgroundColor: ['#198754', '#dc3545']
-      }]
-    },
-    options: { responsive: true, plugins: { legend: { display: false } } }
-  });
+  const ctx2Elem = document.getElementById('chartComp');
+  if (ctx2Elem) {
+    const ctx2 = ctx2Elem.getContext('2d');
+    chartComp = new Chart(ctx2, {
+      type: 'bar',
+      data: {
+        labels: ['Economia de Energia', 'Custos OPEX'],
+        datasets: [{
+          label: `Valores no Ano ${anoRef} (R$)`,
+          data: [economia[anoRef], opex[anoRef]],
+          backgroundColor: ['#198754', '#dc3545']
+        }]
+      },
+      options: { responsive: true, plugins: { legend: { display: false } } }
+    });
+  }
 }
