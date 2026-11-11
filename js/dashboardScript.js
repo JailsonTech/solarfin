@@ -249,7 +249,7 @@ function executarSimulacao() {
   renderizarGraficos(resSimples.fluxoAcumulado, resDescontado.acumuladoDescontado, economiaEnergia, opex);
 }
 
-// Função para gerar e baixar a planilha Excel com Múltiplas Abas (Parâmetros acima do Resumo e Título FLUXO DE DADOS)
+// Função para gerar e baixar a planilha Excel com Múltiplas Abas (Com separador de milhares ativado)
 function exportarPlanilhaMultiaabas() {
   const capex = parsePtBr(document.getElementById('capex')?.value);
   const economiaInicial = parsePtBr(document.getElementById('economiaInicial')?.value);
@@ -269,18 +269,18 @@ function exportarPlanilhaMultiaabas() {
 
   idsLinhas.forEach(idLinha => {
     const financiamento = calcularFinanciamento(idLinha, capex);
-    const investimentoInicial = financiamento.valorEntrada;
+    const investimentoInicial = Number(financiamento.valorEntrada.toFixed(2));
 
     let economiaEnergia = Array(26).fill(0);
     let opex = Array(26).fill(0);
     let fluxoLiquido = Array(26).fill(0);
-    fluxoLiquido[0] = -investimentoInicial;
+    fluxoLiquido[0] = Number((-investimentoInicial).toFixed(2));
 
     for (let ano = 1; ano <= 25; ano++) {
-      economiaEnergia[ano] = economiaInicial * Math.pow(1 + reajusteTarifa, ano - 1);
-      opex[ano] = opexInicial * Math.pow(1 + ipca, ano - 1);
-      let parcelaAnoCorrente = (ano <= financiamento.prazoAnos) ? financiamento.desembolsoAnual : 0;
-      fluxoLiquido[ano] = economiaEnergia[ano] - opex[ano] - parcelaAnoCorrente;
+      economiaEnergia[ano] = Number((economiaInicial * Math.pow(1 + reajusteTarifa, ano - 1)).toFixed(2));
+      opex[ano] = Number((opexInicial * Math.pow(1 + ipca, ano - 1)).toFixed(2));
+      let parcelaAnoCorrente = (ano <= financiamento.prazoAnos) ? Number(financiamento.desembolsoAnual.toFixed(2)) : 0;
+      fluxoLiquido[ano] = Number((economiaEnergia[ano] - opex[ano] - parcelaAnoCorrente).toFixed(2));
     }
 
     const resSimples = calcularPaybackSimples(fluxoLiquido, investimentoInicial);
@@ -300,11 +300,25 @@ function exportarPlanilhaMultiaabas() {
     const pbDescFormatado = resDescontado.pbDescontado ? resDescontado.pbDescontado.toFixed(1).replace('.', ',') + ' anos' : '> 25 anos';
     const pbSimplesFormatado = resSimples.pbSimples ? resSimples.pbSimples.toFixed(1).replace('.', ',') + ' anos' : '> 25 anos';
 
+    // Textos do Parecer Técnico-Financeiro para o Excel
+    const recomendacaoTexto = resDescontado.vpl > 0 ? "RECOMENDADA A IMPLANTAÇÃO" : "NÃO RECOMENDADO";
+    const tirTextoFormatada = (resDescontado.tir !== null && !isNaN(resDescontado.tir)) ? `${(resDescontado.tir * 100).toFixed(2).replace('.', ',')}% ao ano` : "inaplicável (modalidade sem aporte inicial)";
+    const paybackDescTexto = resDescontado.pbDescontado ? `${resDescontado.pbDescontado.toFixed(1).replace('.', ',')} anos` : '> 25 anos';
+
     let wsData = [
       ["RELATÓRIO DE VIABILIDADE - METALÚRGICA ALFA"],
       [`Modalidade:  ${financiamento.linhaSelecionada.nome}`],
       [`Prazo: ${financiamento.linhaSelecionada.prazo} meses | Taxa: ${(financiamento.linhaSelecionada.taxa * 100).toFixed(2)}% a.m.`],
       [`Foco de Análise:  ${tipoFocoPayback === 'simples' ? "Payback Simples (Nominal)" : "Payback Descontado (TMA)"}`],
+      [],
+      ["--- PARECER TÉCNICO FINANCEIRO ---"],
+      ["Desembolso Inicial (Entrada):", Number(financiamento.valorEntrada.toFixed(2))],
+      ["Prazo da Linha:", `${financiamento.linhaSelecionada.prazo} meses`],
+      ["Valor Financiado/Leasing:", Number(financiamento.valorFinanciado.toFixed(2))],
+      ["Parcela Estimada:", Number(financiamento.prestacaoMensal.toFixed(2))],
+      ["Recomendação Final:", recomendacaoTexto],
+      ["Análise de Retorno:", `O VPL calculado é de ${vplFormatado}, com uma TIR de ${tirTextoFormatada}.`],
+      ["Payback (Foco):", `Retorno descontado a TMA em ${paybackDescTexto}.`],
       [],
       ["--- PARÂMETROS DE ENTRADA ---"],
       [
@@ -316,9 +330,9 @@ function exportarPlanilhaMultiaabas() {
         "IPCA / Inflação (%)"
       ],
       [
-        capex, 
-        economiaInicial, 
-        opexInicial, 
+        Number(capex.toFixed(2)), 
+        Number(economiaInicial.toFixed(2)), 
+        Number(opexInicial.toFixed(2)), 
         parsePtBr(tmaVal), 
         parsePtBr(reajusteVal), 
         parsePtBr(ipcaVal)
@@ -345,26 +359,39 @@ function exportarPlanilhaMultiaabas() {
     ];
 
     for (let ano = 0; ano <= 25; ano++) {
-      let parcelaExibida = (ano > 0 && ano <= financiamento.prazoAnos) ? financiamento.desembolsoAnual : 0;
+      let parcelaExibida = (ano > 0 && ano <= financiamento.prazoAnos) ? Number(financiamento.desembolsoAnual.toFixed(2)) : 0;
       wsData.push([
         ano === 0 ? "Ano 0" : `Ano ${ano}`,
-        ano === 0 ? 0 : economiaEnergia[ano],
-        ano === 0 ? 0 : opex[ano],
+        ano === 0 ? 0 : Number(economiaEnergia[ano].toFixed(2)),
+        ano === 0 ? 0 : Number(opex[ano].toFixed(2)),
         parcelaExibida,
-        fluxoLiquido[ano],
-        resSimples.fluxoAcumulado[ano],
-        resDescontado.fluxoDescontado[ano],
-        resDescontado.acumuladoDescontado[ano]
+        Number(fluxoLiquido[ano].toFixed(2)),
+        Number(resSimples.fluxoAcumulado[ano].toFixed(2)),
+        Number(resDescontado.fluxoDescontado[ano].toFixed(2)),
+        Number(resDescontado.acumuladoDescontado[ano].toFixed(2))
       ]);
     }
 
     const ws = XLSX.utils.aoa_to_sheet(wsData);
 
+    // Ativa a formatação de números com separador de milhares e exatamente 2 casas decimais no Excel
+    const range = XLSX.utils.decode_range(ws['!ref']);
+    for (let R = range.s.r; R <= range.e.r; ++R) {
+      for (let C = range.s.c; C <= range.e.c; ++C) {
+        const cellAddress = { c: C, r: R };
+        const cellRef = XLSX.utils.encode_cell(cellAddress);
+        const cell = ws[cellRef];
+        if (cell && typeof cell.v === 'number') {
+          cell.z = '#,##0.00';
+        }
+      }
+    }
+
     // Ajuste seguro da largura das colunas
     ws['!cols'] = [
       { wch: 30 }, // Coluna A
-      { wch: 25 }, // Coluna B
-      { wch: 42 }, // Coluna C
+      { wch: 35 }, // Coluna B
+      { wch: 45 }, // Coluna C
       { wch: 22 }, // Coluna D
       { wch: 22 }, // Coluna E
       { wch: 28 }, // Coluna F
